@@ -1,6 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { StudentNav } from '@/components/student/StudentNav';
 
 interface SessionState {
@@ -420,11 +424,53 @@ export default function StudentChatPage() {
                       return (
                         <div key={message.id} className={`flex ${isStudent ? 'justify-end' : 'justify-start'}`}>
                           <div
-                            className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
+                            className={`markdown-message max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
                               isStudent ? 'bg-sky-600 text-white' : 'bg-white text-slate-800'
                             }`}
                           >
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                a: ({ ...props }) => (
+                                  <a
+                                    {...props}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={isStudent ? 'underline text-sky-100 hover:text-white' : 'underline text-sky-600 hover:text-sky-500'}
+                                  />
+                                ),
+                                code: ({ className, children, ...props }) => {
+                                  const isInline = (props as { inline?: boolean }).inline;
+                                  if (isInline) {
+                                    return (
+                                      <code
+                                        className={`rounded bg-black/10 px-1 py-0.5 text-[0.8rem] ${className ?? ''}`}
+                                      >
+                                        {children}
+                                      </code>
+                                    );
+                                  }
+                                  return (
+                                    <pre
+                                      className={`rounded-xl bg-slate-900/90 px-3 py-3 text-[0.8rem] text-slate-100 overflow-x-auto ${className ?? ''}`}
+                                    >
+                                      <code>{children}</code>
+                                    </pre>
+                                  );
+                                },
+                                p: ({ children }) => <p className="leading-relaxed whitespace-pre-wrap">{children}</p>,
+                                ul: ({ children }) => <ul className="ml-4 list-disc space-y-1">{children}</ul>,
+                                ol: ({ children }) => <ol className="ml-4 list-decimal space-y-1">{children}</ol>,
+                                li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                h1: ({ children }) => <h1 className="text-lg font-semibold mb-2">{children}</h1>,
+                                h2: ({ children }) => <h2 className="text-base font-semibold mb-2">{children}</h2>,
+                                h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+                              }}
+                            >
+                              {message.content}
+                            </ReactMarkdown>
                             <span className={`mt-2 block text-xs ${isStudent ? 'text-sky-100/80' : 'text-slate-400'}`}>
                               {formatTime(message.createdAt)}
                             </span>

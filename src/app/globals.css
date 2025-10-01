@@ -24,3 +24,47 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+.markdown-message {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.markdown-message > *:first-child {
+  margin-top: 0;
+}
+
+.markdown-message > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-message h1,
+.markdown-message h2,
+.markdown-message h3,
+.markdown-message h4 {
+  font-weight: 600;
+}
+
+.markdown-message h1 {
+  font-size: 1.25rem;
+}
+
+.markdown-message h2 {
+  font-size: 1.1rem;
+}
+
+.markdown-message h3 {
+  font-size: 1rem;
+}
+
+.markdown-message ul,
+.markdown-message ol {
+  padding-left: 1.25rem;
+  margin: 0;
+}
+
+.markdown-message code {
+  font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}

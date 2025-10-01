@@ -2,6 +2,10 @@
 
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 interface TeacherSessionState {
   id: string;
@@ -672,9 +676,51 @@ export default function TeacherDashboard() {
                                       <span>{message.sender === 'STUDENT' ? 'Student' : 'AI Assistant'}</span>
                                       <span>{formatTimestamp(message.createdAt)}</span>
                                     </div>
-                                    <p className="text-sm text-slate-100 whitespace-pre-wrap bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                                      {message.content}
-                                    </p>
+                                    <div className="markdown-message text-sm text-slate-100 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                                      <ReactMarkdown
+                                        remarkPlugins={[remarkGfm, remarkMath]}
+                                        rehypePlugins={[rehypeKatex]}
+                                        components={{
+                                          a: ({ ...props }) => (
+                                            <a
+                                              {...props}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="underline text-sky-300 hover:text-sky-200"
+                                            />
+                                          ),
+                                          code: ({ className, children, ...props }) => {
+                                            const isInline = (props as { inline?: boolean }).inline;
+                                            if (isInline) {
+                                              return (
+                                                <code
+                                                  className={`rounded bg-white/10 px-1 py-0.5 text-[0.8rem] ${className ?? ''}`}
+                                                >
+                                                  {children}
+                                                </code>
+                                              );
+                                            }
+                                            return (
+                                              <pre
+                                                className={`rounded-xl bg-slate-900 px-3 py-3 text-[0.8rem] text-slate-100 overflow-x-auto ${className ?? ''}`}
+                                              >
+                                                <code>{children}</code>
+                                              </pre>
+                                            );
+                                          },
+                                          p: ({ children }) => <p className="leading-relaxed whitespace-pre-wrap">{children}</p>,
+                                          ul: ({ children }) => <ul className="ml-4 list-disc space-y-1">{children}</ul>,
+                                          ol: ({ children }) => <ol className="ml-4 list-decimal space-y-1">{children}</ol>,
+                                          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                                          h1: ({ children }) => <h1 className="text-base font-semibold mb-2">{children}</h1>,
+                                          h2: ({ children }) => <h2 className="text-sm font-semibold mb-2">{children}</h2>,
+                                          h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
+                                        }}
+                                      >
+                                        {message.content}
+                                      </ReactMarkdown>
+                                    </div>
                                   </div>
                                 ))
                               )}
