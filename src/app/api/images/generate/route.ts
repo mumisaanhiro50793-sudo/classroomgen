@@ -122,7 +122,7 @@ async function callOpenRouter(prompt: string, options: CallOptions = {}) {
     throw new Error('Missing OpenRouter API key. Set OPENROUTER_API_KEY in your environment.');
   }
 
-  const model = process.env.OPENROUTER_MODEL || 'openai/gpt-image-1';
+  const model = process.env.OPENROUTER_IMAGE_MODEL || process.env.OPENROUTER_MODEL || 'openai/gpt-image-1';
   const headers = {
     Authorization: `Bearer ${apiKey}`,
     'Content-Type': 'application/json',

@@ -18,6 +18,11 @@ enum SubmissionStatus {
   ERROR
 }
 
+enum ChatSender {
+  STUDENT
+  AI
+}
+
 model Session {
   id             String             @id @default(cuid())
   passwordHash   String
@@ -26,6 +31,7 @@ model Session {
   endedAt        DateTime?
   promptEntries  PromptSubmission[]
   students       Student[]
+  chatThreads    ChatThread[]
 }
 
 model PromptSubmission {
@@ -63,6 +69,36 @@ model Student {
   session      Session            @relation(fields: [sessionId], references: [id])
   sessionId    String
   submissions  PromptSubmission[]
+  chatThreads  ChatThread[]
+  chatMessages ChatMessage[]
 
   @@unique([sessionId, username])
+}
+
+model ChatThread {
+  id         String        @id @default(cuid())
+  title      String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  session    Session       @relation(fields: [sessionId], references: [id])
+  sessionId  String
+  student    Student       @relation(fields: [studentId], references: [id])
+  studentId  String
+  messages   ChatMessage[]
+
+  @@index([sessionId])
+  @@index([studentId])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  content   String
+  sender    ChatSender
+  createdAt DateTime    @default(now())
+  thread    ChatThread  @relation(fields: [threadId], references: [id])
+  threadId  String
+  student   Student?    @relation(fields: [studentId], references: [id])
+  studentId String?
+
+  @@index([threadId])
 }

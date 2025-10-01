@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { StudentNav } from '@/components/student/StudentNav';
 
 interface SessionState {
   id: string;
@@ -303,10 +304,13 @@ export default function StudentHome() {
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <div className="max-w-6xl mx-auto px-6 py-10 space-y-10">
-        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold text-sky-900">Classroom Image Lab</h1>
-            <p className="text-sm text-slate-600">Create and refine AI-generated images with your classmates.</p>
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <StudentNav />
+            <div>
+              <h1 className="text-3xl font-semibold text-sky-900">Classroom Image Lab</h1>
+              <p className="text-sm text-slate-600">Create and refine AI-generated images with your classmates.</p>
+            </div>
           </div>
           <div className="text-sm text-slate-500 text-right space-y-1">
             <p>

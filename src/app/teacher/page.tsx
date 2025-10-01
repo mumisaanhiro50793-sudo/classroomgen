@@ -50,6 +50,44 @@ type ImagesResponse = {
   submissions?: Array<GallerySubmission & { remainingEdits?: number; ownedByCurrentUser?: boolean }>;
 };
 
+interface TeacherChatMessage {
+  id: string;
+  content: string;
+  sender: 'STUDENT' | 'AI';
+  createdAt: string;
+}
+
+interface TeacherChatThread {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  student: {
+    id: string;
+    username: string | null;
+  } | null;
+  messages: TeacherChatMessage[];
+}
+
+interface TeacherChatsResponse {
+  threads?: Array<{
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    student: {
+      id: string;
+      username: string | null;
+    } | null;
+    messages: Array<{
+      id: string;
+      content: string;
+      sender: 'STUDENT' | 'AI';
+      createdAt: string;
+    }>;
+  }>;
+}
+
 interface SessionResponse {
   session: {
     id: string;
@@ -86,6 +124,8 @@ export default function TeacherDashboard() {
   const [credentialLoading, setCredentialLoading] = useState(false);
   const [credentialError, setCredentialError] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<Array<{ username: string; password: string }>>([]);
+  const [chats, setChats] = useState<TeacherChatThread[]>([]);
+  const [expandedChats, setExpandedChats] = useState<string[]>([]);
 
   const loadSession = useCallback(async () => {
     try {
@@ -104,9 +144,10 @@ export default function TeacherDashboard() {
     if (!session?.id) return;
     setRefreshing(true);
     try {
-      const [activityRes, galleryRes] = await Promise.all([
+      const [activityRes, galleryRes, chatsRes] = await Promise.all([
         fetch('/api/teacher/activity', { credentials: 'include' }),
         fetch('/api/images', { credentials: 'include' }),
+        fetch('/api/teacher/chats', { credentials: 'include' }),
       ]);
 
       if (activityRes.ok) {
@@ -134,6 +175,24 @@ export default function TeacherDashboard() {
             studentUsername: entry.studentUsername ?? null,
           })),
         );
+      }
+
+      if (chatsRes.ok) {
+        const chatData: TeacherChatsResponse = await chatsRes.json();
+        const chatThreads: TeacherChatThread[] = (chatData.threads ?? []).map((thread) => ({
+          id: thread.id,
+          title: thread.title,
+          createdAt: thread.createdAt,
+          updatedAt: thread.updatedAt,
+          student: thread.student ?? null,
+          messages: (thread.messages ?? []).map((message) => ({
+            id: message.id,
+            content: message.content,
+            sender: message.sender,
+            createdAt: message.createdAt,
+          })),
+        }));
+        setChats(chatThreads);
       }
     } catch (error) {
       console.error('Failed to load activity', error);
@@ -175,6 +234,8 @@ export default function TeacherDashboard() {
 
       setStartPassword('');
       setCredentials([]);
+      setChats([]);
+      setExpandedChats([]);
       await loadSession();
       await loadActivity();
     } catch (error) {
@@ -231,6 +292,10 @@ export default function TeacherDashboard() {
       });
       await loadSession();
       setCredentials([]);
+      setActivity([]);
+      setGallery([]);
+      setChats([]);
+      setExpandedChats([]);
     } catch (error) {
       console.error('Failed to end session', error);
     } finally {
@@ -283,6 +348,12 @@ export default function TeacherDashboard() {
     URL.revokeObjectURL(url);
   }, [credentials]);
 
+  const toggleChatExpansion = useCallback((threadId: string) => {
+    setExpandedChats((prev) =>
+      prev.includes(threadId) ? prev.filter((id) => id !== threadId) : [...prev, threadId],
+    );
+  }, []);
+
   const promptsByRoot = useMemo(() => {
     const groups = new Map<string, ActivitySubmission[]>();
     for (const entry of activity) {
@@ -294,6 +365,25 @@ export default function TeacherDashboard() {
       entries.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     );
   }, [activity]);
+
+  const chatsByStudent = useMemo(() => {
+    const groups = new Map<string, { studentName: string; threads: TeacherChatThread[] }>();
+    for (const thread of chats) {
+      const key = thread.student?.id ?? 'unknown';
+      const entry = groups.get(key) ?? {
+        studentName: thread.student?.username ?? 'Unknown student',
+        threads: [],
+      };
+      entry.threads.push(thread);
+      groups.set(key, entry);
+    }
+    return Array.from(groups.values()).map((group) => ({
+      studentName: group.studentName,
+      threads: group.threads.sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
+    }));
+  }, [chats]);
 
   if (loading) {
     return (
@@ -526,6 +616,74 @@ export default function TeacherDashboard() {
                       </li>
                     ))}
                   </ol>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Chat conversations</h2>
+          {chatsByStudent.length === 0 ? (
+            <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-6 text-slate-400 text-sm">
+              No student chats have been started yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {chatsByStudent.map((group) => (
+                <article key={group.studentName} className="bg-slate-900/60 border border-white/10 rounded-2xl">
+                  <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-100">{group.studentName}</h3>
+                      <p className="text-xs text-slate-400">{group.threads.length} conversation{group.threads.length === 1 ? '' : 's'}</p>
+                    </div>
+                  </header>
+                  <div className="divide-y divide-white/10">
+                    {group.threads.map((thread) => {
+                      const isExpanded = expandedChats.includes(thread.id);
+                      const lastMessage = thread.messages[thread.messages.length - 1];
+                      return (
+                        <div key={thread.id} className="px-6 py-4 space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-100">{thread.title}</p>
+                              <p className="text-xs text-slate-400">
+                                Updated {formatTimestamp(thread.updatedAt)} · {thread.messages.length} messages
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => toggleChatExpansion(thread.id)}
+                              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-md"
+                            >
+                              {isExpanded ? 'Collapse' : 'View conversation'}
+                            </button>
+                          </div>
+                          <p className="text-sm text-slate-300 line-clamp-2">
+                            {lastMessage ? `${lastMessage.sender === 'STUDENT' ? 'Student' : 'AI'}: ${lastMessage.content}` : 'No messages yet'}
+                          </p>
+                          {isExpanded ? (
+                            <div className="space-y-3 border border-white/10 rounded-xl bg-slate-900/40 p-4">
+                              {thread.messages.length === 0 ? (
+                                <p className="text-xs text-slate-400">No messages in this conversation.</p>
+                              ) : (
+                                thread.messages.map((message) => (
+                                  <div key={message.id} className="space-y-1">
+                                    <div className="flex items-center justify-between text-[0.65rem] uppercase tracking-wide text-slate-500">
+                                      <span>{message.sender === 'STUDENT' ? 'Student' : 'AI Assistant'}</span>
+                                      <span>{formatTimestamp(message.createdAt)}</span>
+                                    </div>
+                                    <p className="text-sm text-slate-100 whitespace-pre-wrap bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                                      {message.content}
+                                    </p>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </article>
               ))}
             </div>
